@@ -1,66 +1,29 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+Markdown# Orders API (Laravel Take-Home)
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A lightweight Laravel API reading `orders.json` to expose listing, filtering, detail, and customer order endpoints.
 
-## About Laravel
+---
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Quick Start
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
-
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
-
-## Learning Laravel
-
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
-
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
-
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-## Laravel Sponsors
-
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
-
-### Premium Partners
-
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[WebReinvent](https://webreinvent.com/)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Jump24](https://jump24.co.uk)**
-- **[Redberry](https://redberry.international/laravel/)**
-- **[Active Logic](https://activelogic.com)**
-- **[byte5](https://byte5.de)**
-- **[OP.GG](https://op.gg)**
-
-## Contributing
-
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
-
-## Code of Conduct
-
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
-
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+```bash
+composer install
+cp .env.example .env
+php artisan key:generate
+php artisan serve
+Data File: storage/app/json/data.jsonBase URL: http://localhost:8000/apiNo database or seeders required.EndpointsMethodURIDescriptionGET/api/ordersList all orders with computed totalGET/api/orders?status=paidFilter by statusGET/api/orders?customer_id=1Filter by customer IDGET/api/orders?status=paid&customer_id=1Filter by status and customer IDGET/api/orders/{id}Single order lookupGET/api/customers/{id}/ordersCustomer orders lookup (Bonus)Sample Responsetotal is computed dynamically as sum(quantity × unit_price):JSON{
+  "id": 1003,
+  "customer": { "id": 1, "name": "Jane Wanjiku" },
+  "status": "paid",
+  "items": [
+    { "name": "Laptop Stand", "quantity": 1, "unit_price": 3500 }
+  ],
+  "total": 3500
+}
+Curl ExamplesBashcurl "http://localhost:8000/api/orders"
+curl "http://localhost:8000/api/orders?status=paid"
+curl "http://localhost:8000/api/orders?customer_id=1"
+curl "http://localhost:8000/api/orders?status=paid&customer_id=1"
+curl "http://localhost:8000/api/orders/1003"
+curl "http://localhost:8000/api/customers/1/orders"
+Error HandlingScenarioCodeResponse BodyData file missing404{"error": "File not found"}Invalid JSON syntax500{"error": "Invalid orders data"}Invalid query parameter (customer_id)422{"error": "Invalid customer_id parameter"}Invalid path parameter (id)422{"error": "Invalid order id"} / {"error": "Invalid customer id"}Order ID not found404{"error": "Order not found"}Customer has no orders200[]Note: Empty collections return 200 [] (valid request, empty result), whereas missing resource lookups return 404.Architecture & DesignAll logic is encapsulated in OrderController using two private helpers:orders(): Reads and validates JSON data; triggers HTTP errors on missing or corrupted files.withTotal(): Computes order line-item totals.Implementation DetailsReindexing: Uses array_values() post-filtering to guarantee JSON response arrays encode as sequential lists ([...]) rather than key-value objects.Type-Safe Parsing: Converts string path/query parameters to integers before matching numeric IDs.Null-Safety: Applies standard null-coalescing fallbacks (??) to prevent undefined array key errors.Technical Discussion (Part 5)1. Scaling to 1,000,000 OrdersDatabase: Migrate JSON to relational tables (orders, order_items, customers).Indexes: Index status, customer_id, and composite (status, customer_id) columns.SQL Aggregation & Pagination: Calculate totals using SQL (SUM(quantity * unit_price)) and paginate responses (paginate(15)).2. Input ValidationPerform at the request boundary using Laravel Form Requests for query/body validation and Route Constraints (->whereNumber('id')) for path parameters.3. Resource Not Found StatusReturn 404 Not Found for missing single resources. Use 404 over 403 if resource existence should remain private.4. API SecurityWrap routes in auth:sanctum middleware to enforce token authentication (401 on failure). Combine with Laravel Policies (403) for resource authorization.5. Third-Party API IntegrationCredentials: Store in .env, load through config/services.php, and exclude from version control.Resilience: Wrap calls with Http::timeout(), retry transient failures using backoff and idempotency keys, and offload processing to asynchronous Queue jobs.Testing: Mock external calls using Http::fake() during automated test execution.
